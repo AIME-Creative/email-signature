@@ -47,6 +47,7 @@
   .instructions ol { padding-left: 16px; font-size: 12px; color: #3a5a8a; line-height: 1.9; }
   .instructions code { background: rgba(26,46,107,0.12); padding: 1px 5px; border-radius: 3px; font-family: "DM Mono", monospace; font-size: 11px; }
   .photo-hint { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.8; }
+  #uploadLabel:hover { border-color: var(--navy); color: var(--text); }
   h2 { font-size: 14px; font-weight: 500; margin: 0 0 14px; }
 </style>
 </head>
@@ -65,15 +66,11 @@
       <div class="card-header">Your information</div>
       <div class="card-body">
         <div class="section-label">Personal</div>
-        <div class="field"><label>Full name</label><input type="text" id="name" value="Jonathon Haddad" oninput="update()"></div>
-        <div class="grid-2">
-          <div class="field"><label>Title</label><input type="text" id="title" value="CEO" oninput="update()"></div>
-          <div class="field"><label>Company</label><input type="text" id="company" value="AIME" oninput="update()"></div>
-        </div>
-        <div class="field"><label>Phone</label><input type="tel" id="phone" value="734-377-7986" oninput="update()"></div>
+        <div class="field"><label>Full name</label><input type="text" id="name" value="" placeholder="Your full name" oninput="update()"></div>
+        <div class="field"><label>Title</label><input type="text" id="title" value="" placeholder="e.g. Marketing Manager" oninput="update()"></div>
+        <div class="field"><label>Phone</label><input type="tel" id="phone" value="" placeholder="e.g. 734-377-7986" oninput="formatPhone(this)"></div>
         <hr>
         <div class="section-label">Links</div>
-        <div class="field"><label>Website URL</label><input type="url" id="website" value="https://AimeGroup.com" oninput="update()"></div>
         <div class="field">
           <label style="display:flex;align-items:center;gap:8px;">
             Scheduling link
@@ -90,16 +87,24 @@
         <hr>
         <div class="section-label">Photo</div>
         <div class="field">
-          <label>Photo URL</label>
-          <input type="text" id="photo" value="" placeholder="Paste any image URL or Google Drive share link" oninput="handlePhotoInput()">
+          <label>Upload a photo</label>
+          <label id="uploadLabel" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px dashed var(--border);border-radius:6px;cursor:pointer;background:var(--bg);font-size:13px;color:var(--muted);transition:border-color 0.15s;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span id="uploadLabelText">Click to upload your headshot</span>
+            <input type="file" id="photoUpload" accept="image/*" style="display:none;" onchange="handlePhotoUpload(this)">
+          </label>
           <p id="photo-status" style="display:none;font-size:11px;margin-top:5px;font-weight:500;"></p>
+        </div>
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;">
+            <span>Or paste a URL</span>
+            <span style="color:var(--muted);font-weight:400;">(Google Drive, direct link)</span>
+          </label>
+          <input type="text" id="photo" value="" placeholder="https://... or Google Drive share link" oninput="handlePhotoInput()">
+          <p id="url-status" style="display:none;font-size:11px;margin-top:5px;font-weight:500;"></p>
           <p class="photo-hint">
-            Paste a regular image URL, or a Google Drive share link — it will be converted automatically.<br><br>
-            To get your Google Drive link:<br>
-            1. Right-click your headshot in Google Drive → <strong>Share</strong><br>
-            2. Set access to <strong>"Anyone with the link"</strong><br>
-            3. Click <strong>Copy link</strong> and paste it above<br><br>
-            <strong>Note:</strong> the image must be shared as "Anyone with the link" or it won't display in emails.
+            Google Drive links are converted automatically.<br>
+            Make sure the file is shared as <strong>"Anyone with the link"</strong>.
           </p>
         </div>
         <hr>
@@ -184,7 +189,7 @@ function isDriveInput(raw) {
 
 function handlePhotoInput() {
   const raw = document.getElementById("photo").value.trim();
-  const status = document.getElementById("photo-status");
+  const status = document.getElementById("url-status");
   if (raw === "") {
     status.style.display = "none";
   } else if (isDriveInput(raw)) {
@@ -194,21 +199,44 @@ function handlePhotoInput() {
   } else {
     status.style.display = "none";
   }
+  // Clear uploaded photo if URL is typed
+  document.getElementById("photoUpload").value = "";
+  window._uploadedPhotoURI = null;
   update();
+}
+
+function handlePhotoUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById("photo-status");
+  const label  = document.getElementById("uploadLabelText");
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    window._uploadedPhotoURI = e.target.result;
+    // Clear the URL field
+    document.getElementById("photo").value = "";
+    document.getElementById("url-status").style.display = "none";
+    label.textContent = file.name;
+    status.style.display = "block";
+    status.style.color = "var(--success)";
+    status.textContent = "✓ Photo uploaded";
+    update();
+  };
+  reader.readAsDataURL(file);
 }
 
 function v(id){ return document.getElementById(id).value.trim(); }
 
 function buildHTML(){
   const name    = v("name")    || "Your Name";
-  const title   = v("title")   || "Title";
-  const company = v("company") || "AIME";
-  const phone   = v("phone");
-  const website = v("website");
-  const webLabel = website.replace(/^https?:\/\//,"").toLowerCase();
+  const title   = v("title")   || "Your Title";
+  const company = "AIME";
+  const phone   = v("phone")   || "123-456-7890";
+  const website = "https://AimeGroup.com";
+  const webLabel = "aimegroup.com";
   const meeting  = v("meeting");
   const showMeeting = document.getElementById("showMeeting").checked;
-  const photo    = convertPhotoURL(v("photo"));
+  const photo    = window._uploadedPhotoURI || convertPhotoURL(v("photo"));
   const useCustom = document.getElementById("customSocials").checked;
   const fb = useCustom ? v("fb") : "https://www.facebook.com/AIMEnational";
   const li = useCustom ? v("li") : "https://www.linkedin.com/company/aimenational";
@@ -244,10 +272,25 @@ function buildHTML(){
       <p style="margin:0 0 1px;font-size:20px;font-weight:bold;color:#021649;">${name}</p>
       <p style="margin:0 0 12px;font-size:12px;color:#021649;">${title}&nbsp;&nbsp;|&nbsp;&nbsp;${company}</p>
       ${info}
-      ${socials ? `<p style="margin:0;display:flex;align-items:center;">${socials}</p>` : ""}
+      ${socials ? '<p style="margin:0;display:flex;align-items:center;">' + socials + '</p>' : ""}
     </td>
   </tr>
 </table>`;
+}
+
+function formatPhone(input) {
+  // Strip everything except digits
+  let digits = input.value.replace(/\D/g, '').slice(0, 10);
+  let formatted = '';
+  if (digits.length <= 3) {
+    formatted = digits;
+  } else if (digits.length <= 6) {
+    formatted = digits.slice(0,3) + '-' + digits.slice(3);
+  } else {
+    formatted = digits.slice(0,3) + '-' + digits.slice(3,6) + '-' + digits.slice(6);
+  }
+  input.value = formatted;
+  update();
 }
 
 function toggleMeeting(){
